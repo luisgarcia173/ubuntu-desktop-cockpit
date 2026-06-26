@@ -1,0 +1,9 @@
+[package]
+name = "cockpit-notes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+cockpit-domain = { path = "../cockpit-domain" }
+thiserror.workspace = true

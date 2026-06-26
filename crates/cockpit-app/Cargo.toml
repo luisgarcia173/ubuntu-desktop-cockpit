@@ -1,0 +1,18 @@
+[package]
+name = "cockpit-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+cockpit-calendar = { path = "../cockpit-calendar" }
+cockpit-config = { path = "../cockpit-config" }
+cockpit-core = { path = "../cockpit-core" }
+cockpit-domain = { path = "../cockpit-domain" }
+cockpit-notes = { path = "../cockpit-notes" }
+cockpit-system = { path = "../cockpit-system" }
+cockpit-ui-gtk = { path = "../cockpit-ui-gtk" }
+
+[features]
+default = []
+gtk-ui = ["cockpit-ui-gtk/gtk-ui"]

@@ -1,0 +1,15 @@
+[package]
+name = "cockpit-ui-gtk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+cockpit-domain = { path = "../cockpit-domain" }
+gio = { workspace = true, optional = true }
+glib = { workspace = true, optional = true }
+gtk4 = { workspace = true, optional = true }
+
+[features]
+default = []
+gtk-ui = ["dep:gio", "dep:glib", "dep:gtk4"]

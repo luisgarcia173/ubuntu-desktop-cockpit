@@ -1,0 +1,59 @@
+[app]
+name = "Desktop Cockpit"
+refresh_interval_seconds = 5
+
+[window]
+width = 980
+height = 760
+monitor = 1
+position = "top-right"
+margin_top = 32
+margin_right = 24
+opacity = 0.92
+always_on_top = false
+
+[theme]
+font_family = "JetBrains Mono"
+font_size = 13
+border_radius = 16
+padding = 16
+
+[ui]
+display_profile = "plain" #"test-all-features"
+show_sound_test_button = false
+
+[sections]
+show_clock = true
+show_events = true
+show_tasks = true
+show_system = true
+show_shortcuts = true
+
+[notes]
+daily_file = "examples/today.example.md"
+
+[[events]]
+time = "10:00"
+title = "Aula Marc"
+description = "Mentoria Java"
+
+[[events]]
+time = "13:30"
+title = "Daily"
+description = "Trabalho"
+
+[[shortcuts]]
+label = "IntelliJ"
+command = "idea"
+
+[[shortcuts]]
+label = "VS Code"
+command = "code"
+
+[[shortcuts]]
+label = "Chrome"
+command = "google-chrome"
+
+[[shortcuts]]
+label = "Podman"
+command = "podman-desktop || flatpak run io.podman_desktop.PodmanDesktop || x-terminal-emulator -e podman ps"

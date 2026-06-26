@@ -1,0 +1,28 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "crates/cockpit-app",
+    "crates/cockpit-domain",
+    "crates/cockpit-core",
+    "crates/cockpit-config",
+    "crates/cockpit-system",
+    "crates/cockpit-notes",
+    "crates/cockpit-calendar",
+    "crates/cockpit-ui-gtk",
+]
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+version = "0.1.0"
+
+[workspace.dependencies]
+chrono = "0.4"
+gio = "0.22"
+glib = "0.22"
+gtk4 = "0.11"
+serde = { version = "1", features = ["derive"] }
+sysinfo = "0.37"
+thiserror = "2"
+toml = "0.9"

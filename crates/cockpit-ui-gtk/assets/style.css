@@ -1,0 +1,332 @@
+window {
+  background: transparent;
+}
+
+.cockpit-panel {
+  background: linear-gradient(135deg, rgba(4, 12, 18, 0.96), rgba(10, 20, 26, 0.92));
+  color: #dffcff;
+  border: 1px solid rgba(65, 221, 255, 0.46);
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 1px rgba(255, 159, 43, 0.12),
+    0 0 34px rgba(34, 204, 238, 0.22),
+    0 18px 50px rgba(0, 0, 0, 0.48);
+  font-family: "JetBrains Mono", "Ubuntu Mono", monospace;
+  font-size: 13px;
+  padding: 14px;
+}
+
+.side-rail {
+  min-width: 46px;
+  padding: 10px 5px;
+  border: 1px solid rgba(255, 159, 43, 0.2);
+  border-radius: 6px;
+  background: linear-gradient(160deg, rgba(255, 159, 43, 0.08), rgba(9, 38, 48, 0.32));
+  box-shadow: 0 0 12px rgba(255, 159, 43, 0.08);
+}
+
+.side-title {
+  color: #ffbd6b;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 0.9;
+  text-shadow: 0 0 10px rgba(255, 159, 43, 0.56);
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+.side-version {
+  margin-top: auto;
+  color: #7df2ff;
+  font-size: 10px;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(50, 220, 255, 0.48);
+}
+
+.close-button {
+  padding: 3px 0;
+  min-width: 28px;
+  min-height: 26px;
+  border-radius: 4px;
+  color: #ffbd6b;
+  border-color: rgba(255, 159, 43, 0.58);
+  background: rgba(255, 159, 43, 0.1);
+  text-shadow: 0 0 10px rgba(255, 159, 43, 0.62);
+}
+
+.close-button:hover {
+  color: #fff5e6;
+  border-color: rgba(255, 112, 112, 0.86);
+  background: rgba(255, 78, 78, 0.22);
+}
+
+.panel-content {
+  min-width: 0;
+}
+
+.cockpit-body {
+  min-width: 0;
+}
+
+.main-panel {
+  padding: 10px;
+  border: 1px solid rgba(65, 221, 255, 0.22);
+  border-radius: 6px;
+  background: rgba(6, 22, 29, 0.34);
+  box-shadow: 0 0 18px rgba(65, 221, 255, 0.08);
+}
+
+.right-column {
+  min-width: 260px;
+}
+
+.panel-header {
+  margin-bottom: 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(65, 221, 255, 0.28);
+}
+
+.clock-box {
+  min-width: 0;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.clock-time {
+  color: #7df2ff;
+  font-size: 32px;
+  font-weight: 700;
+  text-shadow: 0 0 14px rgba(50, 220, 255, 0.72);
+}
+
+.clock-date {
+  color: #ffbd6b;
+}
+
+.hud-status-box {
+  margin-left: auto;
+  margin-right: auto;
+  padding: 3px 0;
+}
+
+.hud-tag {
+  color: #ff9f2b;
+  font-size: 16px;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(255, 159, 43, 0.54);
+}
+
+.hud-status {
+  color: #7df2ff;
+  font-size: 11px;
+}
+
+.section-heading-row {
+  margin-top: 12px;
+  margin-bottom: 3px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(65, 221, 255, 0.16);
+}
+
+.section-marker {
+  color: #ff9f2b;
+  font-weight: 700;
+}
+
+.section-heading {
+  color: #dffcff;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(65, 221, 255, 0.42);
+}
+
+.data-row {
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid rgba(65, 221, 255, 0.16);
+  border-radius: 4px;
+  background: rgba(8, 27, 34, 0.34);
+}
+
+.row-key {
+  color: #ffbd6b;
+  font-weight: 700;
+  min-width: 52px;
+}
+
+.row-value {
+  color: #d8fbff;
+}
+
+.extra-panel {
+  margin-top: 0;
+  padding: 8px;
+  border: 1px solid rgba(255, 159, 43, 0.22);
+  border-radius: 6px;
+  background: rgba(7, 25, 32, 0.42);
+  box-shadow: 0 0 16px rgba(255, 159, 43, 0.08);
+}
+
+.status-panel {
+  padding: 8px;
+  border: 1px solid rgba(65, 221, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(6, 22, 29, 0.32);
+  box-shadow: 0 0 14px rgba(65, 221, 255, 0.06);
+}
+
+.status-panel .section-heading-row {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.status-card {
+  padding: 7px 10px;
+  min-width: 130px;
+  border: 1px solid rgba(65, 221, 255, 0.22);
+  border-radius: 4px;
+  background: rgba(8, 27, 34, 0.38);
+}
+
+.status-card-title {
+  color: #7df2ff;
+  font-weight: 700;
+}
+
+.status-card-state {
+  font-weight: 700;
+}
+
+.status-card-state-online {
+  color: #3dff88;
+  text-shadow: 0 0 10px rgba(61, 255, 136, 0.34);
+}
+
+.status-card-state-offline {
+  color: #ff6f61;
+  text-shadow: 0 0 10px rgba(255, 111, 97, 0.32);
+}
+
+.extra-panel .section-heading-row {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.pomodoro-panel {
+  padding: 8px;
+  border: 1px solid rgba(65, 221, 255, 0.22);
+  border-radius: 6px;
+  background: rgba(7, 25, 32, 0.42);
+  box-shadow: 0 0 16px rgba(65, 221, 255, 0.08);
+}
+
+.pomodoro-controls-panel {
+  min-width: 0;
+}
+
+.pomodoro-panel .section-heading-row {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.shortcuts {
+  margin-top: 4px;
+}
+
+button {
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgba(12, 40, 50, 0.72);
+  color: #dffcff;
+  border: 1px solid rgba(65, 221, 255, 0.5);
+  box-shadow: none;
+}
+
+button:hover {
+  background: rgba(255, 159, 43, 0.18);
+  border-color: rgba(255, 189, 107, 0.72);
+  color: #fff5e6;
+}
+
+.shortcut-button {
+  background: rgba(11, 35, 44, 0.8);
+  min-width: 86px;
+}
+
+.pomodoro-timer-dial {
+  padding: 12px;
+  min-width: 190px;
+  min-height: 92px;
+  border: 1px solid rgba(65, 221, 255, 0.38);
+  border-radius: 6px;
+  background:
+    linear-gradient(90deg, rgba(65, 221, 255, 0.14), transparent 22%, transparent 78%, rgba(255, 159, 43, 0.12)),
+    repeating-linear-gradient(90deg, rgba(65, 221, 255, 0.08) 0, rgba(65, 221, 255, 0.08) 1px, transparent 1px, transparent 18px),
+    rgba(8, 27, 34, 0.56);
+  box-shadow:
+    0 0 18px rgba(65, 221, 255, 0.14),
+    inset 0 0 20px rgba(65, 221, 255, 0.08);
+}
+
+.pomodoro-time {
+  color: #7df2ff;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-shadow: 0 0 10px rgba(50, 220, 255, 0.58);
+}
+
+.pomodoro-timer-actions {
+  margin-top: 0;
+}
+
+.pomodoro-status {
+  color: #ffbd6b;
+  font-size: 12px;
+}
+
+.pomodoro-controls {
+  margin-top: 6px;
+}
+
+.pomodoro-button {
+  background: rgba(20, 52, 58, 0.78);
+  border-color: rgba(255, 159, 43, 0.46);
+  min-width: 84px;
+}
+
+.pomodoro-switch {
+  padding: 1px 7px;
+  min-width: 32px;
+  border-radius: 4px;
+  background: rgba(255, 159, 43, 0.18);
+  border-color: rgba(255, 189, 107, 0.76);
+  color: #ffbd6b;
+  font-size: 14px;
+  text-shadow: 0 0 10px rgba(255, 159, 43, 0.58);
+}
+
+.pomodoro-switch:disabled {
+  color: rgba(125, 242, 255, 0.38);
+  border-color: rgba(65, 221, 255, 0.2);
+  background: rgba(12, 40, 50, 0.42);
+}
+
+.pomodoro-reset {
+  padding: 1px 7px;
+  min-width: 32px;
+  border-radius: 4px;
+  background: rgba(12, 40, 50, 0.58);
+  border-color: rgba(65, 221, 255, 0.42);
+  color: #7df2ff;
+  font-size: 14px;
+  text-shadow: 0 0 10px rgba(50, 220, 255, 0.5);
+}
+
+.pomodoro-reset:disabled {
+  color: rgba(125, 242, 255, 0.38);
+  border-color: rgba(65, 221, 255, 0.2);
+  background: rgba(12, 40, 50, 0.42);
+}
