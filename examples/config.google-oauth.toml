@@ -19,14 +19,14 @@ border_radius = 16
 padding = 16
 
 [ui]
-display_profile = "plain" #"test-all-features"
+display_profile = "plain"
 show_sound_test_button = false
 
 [calendar]
-provider = "local" # "google-oauth"
+provider = "google-oauth"
 
 [calendar.google_oauth]
-calendar_id = "primary"
+ccalendar_id = "primary"
 calendar_ids = ["primary"]
 include_tasks_today = true
 credentials_file = "credentials/credentials.json"
@@ -44,15 +44,16 @@ show_shortcuts = true
 [notes]
 daily_file = "examples/today.example.md"
 
+# Eventos locais opcionais: mantidos como fallback visual quando trocar provider para "local".
 [[events]]
-time = "10:00"
-title = "Aula Marc"
+time = "09:00"
+title = "Revisar Aulas/Mentoria"
 description = "Mentoria Java"
 
 [[events]]
-time = "13:30"
-title = "Daily"
-description = "Trabalho"
+time = "19:00"
+title = "Treino: Vôlei"
+description = "Vôlei"
 
 [[shortcuts]]
 label = "IntelliJ"
@@ -69,3 +70,4 @@ command = "google-chrome"
 [[shortcuts]]
 label = "Podman"
 command = "podman-desktop || flatpak run io.podman_desktop.PodmanDesktop"
+

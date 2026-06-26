@@ -58,6 +58,39 @@ pub struct Event {
     pub description: Option<String>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum CalendarProvider {
+    #[default]
+    Local,
+    GoogleOAuth,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GoogleOAuthConfig {
+    pub calendar_id: String,
+    pub calendar_ids: Vec<String>,
+    pub include_tasks_today: bool,
+    pub credentials_file: Option<String>,
+    pub client_id: Option<String>,
+    pub client_secret: Option<String>,
+    pub refresh_token: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CalendarConfig {
+    pub provider: CalendarProvider,
+    pub google_oauth: Option<GoogleOAuthConfig>,
+}
+
+impl Default for CalendarConfig {
+    fn default() -> Self {
+        Self {
+            provider: CalendarProvider::Local,
+            google_oauth: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SystemMetric {
     pub cpu_usage_percent: f32,
@@ -172,6 +205,7 @@ pub struct AppConfig {
     pub window: WindowConfig,
     pub theme: ThemeConfig,
     pub ui: UiConfig,
+    pub calendar: CalendarConfig,
     pub sections: DashboardSections,
     pub notes: NotesConfig,
     pub events: Vec<Event>,
@@ -186,6 +220,7 @@ impl Default for AppConfig {
             window: WindowConfig::default(),
             theme: ThemeConfig::default(),
             ui: UiConfig::default(),
+            calendar: CalendarConfig::default(),
             sections: DashboardSections::default(),
             notes: NotesConfig { daily_file: None },
             events: Vec::new(),

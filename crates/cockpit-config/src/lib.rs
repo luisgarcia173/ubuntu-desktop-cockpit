@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use cockpit_domain::{
-    AppConfig, DashboardSections, DisplayProfile, Event, NotesConfig, Shortcut, ThemeConfig,
-    UiConfig, WidgetPosition, WindowConfig,
+    AppConfig, CalendarProvider, DashboardSections, DisplayProfile, Event, GoogleOAuthConfig,
+    NotesConfig, Shortcut, ThemeConfig, UiConfig, WidgetPosition, WindowConfig,
 };
 use serde::Deserialize;
 use thiserror::Error;
@@ -26,6 +26,16 @@ pub enum ConfigError {
     InvalidPosition(String),
     #[error("invalid display profile: {0}")]
     InvalidDisplayProfile(String),
+    #[error("invalid calendar provider: {0}")]
+    InvalidCalendarProvider(String),
+    #[error("calendar.provider is 'google-oauth' but [calendar.google_oauth] is missing")]
+    MissingGoogleOAuthConfig,
+    #[error("calendar.google_oauth.{0} is required when using google-oauth provider")]
+    MissingGoogleOAuthField(&'static str),
+    #[error("google-oauth requires at least one calendar id via calendar_id or calendar_ids")]
+    MissingGoogleCalendarIds,
+    #[error("google-oauth requires either calendar.google_oauth.credentials_file or both client_id and client_secret")]
+    MissingGoogleOAuthClientCredentials,
     #[error("refresh_interval_seconds must be at least 1")]
     InvalidRefreshInterval,
 }
@@ -81,6 +91,7 @@ struct RawConfig {
     window: Option<RawWindow>,
     theme: Option<RawTheme>,
     ui: Option<RawUi>,
+    calendar: Option<RawCalendar>,
     sections: Option<RawSections>,
     notes: Option<RawNotes>,
     #[serde(default)]
@@ -145,6 +156,55 @@ impl RawConfig {
             };
         }
 
+        if let Some(calendar) = self.calendar {
+            let provider = match calendar.provider {
+                Some(provider) => parse_calendar_provider(&provider)?,
+                None => config.calendar.provider,
+            };
+
+            let google_oauth = if matches!(provider, CalendarProvider::GoogleOAuth) {
+                let google_oauth = calendar
+                    .google_oauth
+                    .ok_or(ConfigError::MissingGoogleOAuthConfig)?;
+                let credentials_file = google_oauth.credentials_file;
+                let client_id = google_oauth.client_id;
+                let client_secret = google_oauth.client_secret;
+                let has_credentials_file = credentials_file.is_some();
+                let has_inline_credentials = client_id.is_some() && client_secret.is_some();
+                if !has_credentials_file && !has_inline_credentials {
+                    return Err(ConfigError::MissingGoogleOAuthClientCredentials);
+                }
+
+                Some(GoogleOAuthConfig {
+                    calendar_id: google_oauth.calendar_id.unwrap_or_else(|| "primary".to_string()),
+                    calendar_ids: google_oauth.calendar_ids.unwrap_or_default(),
+                    include_tasks_today: google_oauth.include_tasks_today.unwrap_or(false),
+                    credentials_file,
+                    client_id,
+                    client_secret,
+                    refresh_token: google_oauth
+                        .refresh_token
+                        .ok_or(ConfigError::MissingGoogleOAuthField("refresh_token"))?,
+                })
+            } else {
+                None
+            };
+
+            config.calendar.provider = provider;
+            config.calendar.google_oauth = google_oauth;
+
+            if let Some(google_oauth) = config.calendar.google_oauth.as_mut() {
+                if google_oauth.calendar_ids.is_empty() {
+                    google_oauth.calendar_ids.push(google_oauth.calendar_id.clone());
+                }
+
+                google_oauth.calendar_ids.retain(|id| !id.trim().is_empty());
+                if google_oauth.calendar_ids.is_empty() {
+                    return Err(ConfigError::MissingGoogleCalendarIds);
+                }
+            }
+        }
+
         if let Some(sections) = self.sections {
             let defaults = DashboardSections::default();
             config.sections = DashboardSections {
@@ -203,6 +263,14 @@ fn parse_display_profile(display_profile: &str) -> Result<DisplayProfile, Config
     }
 }
 
+fn parse_calendar_provider(provider: &str) -> Result<CalendarProvider, ConfigError> {
+    match provider {
+        "local" => Ok(CalendarProvider::Local),
+        "google-oauth" => Ok(CalendarProvider::GoogleOAuth),
+        other => Err(ConfigError::InvalidCalendarProvider(other.to_string())),
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct RawApp {
     name: Option<String>,
@@ -236,6 +304,23 @@ struct RawUi {
 }
 
 #[derive(Debug, Deserialize)]
+struct RawCalendar {
+    provider: Option<String>,
+    google_oauth: Option<RawGoogleOAuth>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawGoogleOAuth {
+    calendar_id: Option<String>,
+    calendar_ids: Option<Vec<String>>,
+    include_tasks_today: Option<bool>,
+    credentials_file: Option<String>,
+    client_id: Option<String>,
+    client_secret: Option<String>,
+    refresh_token: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 struct RawSections {
     show_clock: Option<bool>,
     show_events: Option<bool>,
@@ -265,6 +350,7 @@ struct RawShortcut {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cockpit_domain::CalendarProvider;
     use std::io::Write;
 
     #[test]
@@ -314,6 +400,55 @@ title = "Planning"
         assert_eq!(config.window.width, 360);
         assert_eq!(config.refresh_interval_seconds, 5);
         assert!(config.sections.show_clock);
+    }
+
+    #[test]
+    fn loads_google_oauth_calendar_config() {
+        let path = write_temp_config(
+            "google-oauth",
+            r#"
+[calendar]
+provider = "google-oauth"
+
+[calendar.google_oauth]
+calendar_id = "primary"
+calendar_ids = ["primary", "work@example.com"]
+include_tasks_today = true
+credentials_file = "./credentials.json"
+refresh_token = "refresh-token"
+"#,
+        );
+
+        let config = ConfigLoader::load_from_path(&path).unwrap();
+
+        assert_eq!(config.calendar.provider, CalendarProvider::GoogleOAuth);
+        let oauth = config.calendar.google_oauth.unwrap();
+        assert_eq!(oauth.calendar_id, "primary");
+        assert_eq!(oauth.calendar_ids.len(), 2);
+        assert!(oauth.include_tasks_today);
+        assert_eq!(oauth.credentials_file.as_deref(), Some("./credentials.json"));
+    }
+
+    #[test]
+    fn rejects_google_oauth_without_credentials() {
+        let path = write_temp_config(
+            "google-oauth-missing",
+            r#"
+[calendar]
+provider = "google-oauth"
+
+[calendar.google_oauth]
+calendar_id = "primary"
+refresh_token = "refresh-token"
+"#,
+        );
+
+        let error = ConfigLoader::load_from_path(&path).unwrap_err();
+
+        assert!(matches!(
+            error,
+            ConfigError::MissingGoogleOAuthClientCredentials
+        ));
     }
 
     fn write_temp_config(name: &str, content: &str) -> PathBuf {

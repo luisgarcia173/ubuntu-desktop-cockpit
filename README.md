@@ -62,6 +62,45 @@ Desktop Cockpit searches config in this order:
 
 See [examples/config.example.toml](examples/config.example.toml).
 
+### Google Calendar OAuth
+
+The `Proximos eventos` section can read Google Calendar events from the current day with
+start time greater than or equal to now.
+
+1. Create OAuth credentials in Google Cloud Console for a desktop app.
+2. Generate a refresh token for the scope `https://www.googleapis.com/auth/calendar.readonly`.
+3. Update your config:
+
+```toml
+[calendar]
+provider = "google-oauth"
+
+[calendar.google_oauth]
+calendar_id = "primary"
+calendar_ids = ["primary", "work@example.com"]
+include_tasks_today = true
+credentials_file = "credentials.json"
+refresh_token = "your-google-refresh-token"
+```
+
+`credentials.json` must be the Google OAuth client file (Desktop app) containing
+an `installed` (or `web`) block with `client_id` and `client_secret`.
+
+Generate the refresh token directly with the app (first login):
+
+```bash
+cargo run -p cockpit-app -- --google-login --credentials credentials/credentials.json
+```
+
+After browser consent, copy the printed refresh token to `calendar.google_oauth.refresh_token`.
+
+The first-login flow requests read-only scopes for both Calendar and Tasks:
+
+- `https://www.googleapis.com/auth/calendar.readonly`
+- `https://www.googleapis.com/auth/tasks.readonly`
+
+When `provider = "local"`, the app keeps using `[[events]]` entries from TOML.
+
 ## Roadmap
 
 - V0.1: GTK window, TOML config, clock, local events, Markdown tasks, CPU/RAM, basic CSS.
@@ -72,4 +111,4 @@ See [examples/config.example.toml](examples/config.example.toml).
 ## Known Limitations
 
 - GNOME/Wayland does not expose reliable monitor targeting for normal GTK4 windows, so monitor switching is not implemented.
-- Google Calendar, Microsoft login, telemetry, AI, Docker, and Podman are intentionally out of V0.1.
+- Microsoft login, telemetry, and AI are intentionally out of V0.1.

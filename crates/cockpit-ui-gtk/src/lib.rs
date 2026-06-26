@@ -1,5 +1,4 @@
 use cockpit_domain::{AppConfig, Dashboard};
-
 #[cfg(feature = "gtk-ui")]
 use cockpit_domain::DisplayProfile;
 #[cfg(feature = "gtk-ui")]
@@ -7,7 +6,7 @@ use gtk4::prelude::*;
 #[cfg(feature = "gtk-ui")]
 use std::path::{Path, PathBuf};
 #[cfg(feature = "gtk-ui")]
-use std::{cell::Cell, rc::Rc};
+use std::{cell::Cell, process::Stdio, rc::Rc};
 
 #[cfg(feature = "gtk-ui")]
 pub fn run_dashboard(config: &AppConfig, dashboard: Dashboard) {
@@ -29,7 +28,7 @@ pub fn run_dashboard(config: &AppConfig, dashboard: Dashboard) {
             );
         }
 
-        let root = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+        let root = gtk::Box::new(gtk::Orientation::Horizontal, 10);
         root.add_css_class("cockpit-panel");
         root.set_margin_top(config.theme.padding.into());
         root.set_margin_bottom(config.theme.padding.into());
@@ -45,6 +44,16 @@ pub fn run_dashboard(config: &AppConfig, dashboard: Dashboard) {
         side_title.set_vexpand(true);
         side_rail.append(&side_title);
 
+        let reload_button = gtk::Button::with_label("⟳");
+        reload_button.add_css_class("reload-button");
+        reload_button.set_tooltip_text(Some("Atualizar cockpit agora"));
+        let app_for_reload = app.clone();
+        reload_button.connect_clicked(move |_| match reload_cockpit_process() {
+            Ok(_) => app_for_reload.quit(),
+            Err(error) => eprintln!("failed to reload cockpit: {error}"),
+        });
+        side_rail.append(&reload_button);
+
         let close_button = gtk::Button::with_label("⏻");
         close_button.add_css_class("close-button");
         close_button.set_tooltip_text(Some("Encerrar Desktop Cockpit"));
@@ -59,11 +68,11 @@ pub fn run_dashboard(config: &AppConfig, dashboard: Dashboard) {
 
         root.append(&side_rail);
 
-        let content = gtk::Box::new(gtk::Orientation::Vertical, 12);
+        let content = gtk::Box::new(gtk::Orientation::Vertical, 10);
         content.add_css_class("panel-content");
         content.set_hexpand(true);
 
-        let header = gtk::Box::new(gtk::Orientation::Vertical, 6);
+        let header = gtk::Box::new(gtk::Orientation::Vertical, 4);
         header.add_css_class("panel-header");
         header.set_hexpand(true);
 
@@ -87,11 +96,11 @@ pub fn run_dashboard(config: &AppConfig, dashboard: Dashboard) {
 
         content.append(&header);
 
-        let cockpit_body = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+        let cockpit_body = gtk::Box::new(gtk::Orientation::Horizontal, 10);
         cockpit_body.add_css_class("cockpit-body");
         cockpit_body.set_hexpand(true);
 
-        let main_panel = gtk::Box::new(gtk::Orientation::Vertical, 12);
+        let main_panel = gtk::Box::new(gtk::Orientation::Vertical, 8);
         main_panel.add_css_class("main-panel");
         main_panel.set_hexpand(true);
 
@@ -108,27 +117,24 @@ pub fn run_dashboard(config: &AppConfig, dashboard: Dashboard) {
 
         cockpit_body.append(&main_panel);
 
-        let right_column = gtk::Box::new(gtk::Orientation::Vertical, 12);
-        right_column.add_css_class("right-column");
-        right_column.set_hexpand(false);
-
-        append_pomodoro_panel(&right_column, &config);
-        cockpit_body.append(&right_column);
-
         content.append(&cockpit_body);
 
         if dashboard.sections.show_shortcuts {
             append_shortcuts_panel(&content, &dashboard);
         }
 
+        append_pomodoro_panel(&content, &config);
+
         append_environment_status_panel(&content);
 
         root.append(&content);
 
+        let window_width = effective_window_width(&root, config.window.width);
+
         let window = gtk::ApplicationWindow::builder()
             .application(app)
             .title(&config.name)
-            .default_width(config.window.width as i32)
+            .default_width(window_width)
             .default_height(config.window.height as i32)
             .decorated(false)
             .child(&root)
@@ -261,9 +267,10 @@ fn append_shortcuts_panel(root: &gtk4::Box, dashboard: &Dashboard) {
         ));
         button.add_css_class("shortcut-button");
         let command = shortcut.command.clone();
+        let label = shortcut.label.clone();
         button.connect_clicked(move |_| {
-            if let Err(error) = spawn_command(&command) {
-                eprintln!("failed to run shortcut `{command}`: {error}");
+            if let Err(error) = spawn_shortcut_command(&label, &command) {
+                eprintln!("failed to run shortcut `{label}` with `{command}`: {error}");
             }
         });
         shortcuts.append(&button);
@@ -280,33 +287,25 @@ fn append_environment_status_panel(root: &gtk4::Box) {
 
     append_heading(&panel, "Status ambiente");
 
-    let cards = gtk4::Box::new(gtk4::Orientation::Horizontal, 10);
-    cards.add_css_class("status-cards");
-
-    let containers = running_containers();
-    for (icon, name, status) in environment_statuses(&containers) {
-        let card = gtk4::Box::new(gtk4::Orientation::Vertical, 2);
-        card.add_css_class("status-card");
-
-        let title = gtk4::Label::new(Some(&format!("{icon} {name}")));
-        title.add_css_class("status-card-title");
-        title.set_xalign(0.0);
-        card.append(&title);
-
-        let status_label = gtk4::Label::new(Some(&status));
-        status_label.add_css_class("status-card-state");
-        if status == "DOWN" || status == "OFFLINE" {
-            status_label.add_css_class("status-card-state-offline");
-        } else {
-            status_label.add_css_class("status-card-state-online");
-        }
-        status_label.set_xalign(0.0);
-        card.append(&status_label);
-
-        cards.append(&card);
+    let running = running_containers();
+    if running.is_empty() {
+        let empty = gtk4::Label::new(Some(
+            "Nenhum container Docker/Podman em execucao no momento.\nSuba seus servicos e o cockpit atualiza automaticamente.",
+        ));
+        empty.add_css_class("status-empty");
+        empty.set_xalign(0.0);
+        panel.append(&empty);
+        root.append(&panel);
+        return;
     }
 
-    panel.append(&cards);
+    let status_json = running_containers_json_like(&running);
+    let status_text = gtk4::Label::new(Some(&status_json));
+    status_text.add_css_class("status-json");
+    status_text.set_xalign(0.0);
+    status_text.set_selectable(true);
+    panel.append(&status_text);
+
     root.append(&panel);
 }
 
@@ -320,20 +319,21 @@ fn append_pomodoro_panel(root: &gtk4::Box, config: &AppConfig) {
 
 #[cfg(feature = "gtk-ui")]
 fn append_pomodoro_section(root: &gtk4::Box, show_sound_test_button: bool) {
-    let controls_panel = gtk4::Box::new(gtk4::Orientation::Vertical, 8);
+    let controls_panel = gtk4::Box::new(gtk4::Orientation::Vertical, 6);
     controls_panel.add_css_class("pomodoro-controls-panel");
     controls_panel.set_hexpand(true);
 
     append_heading(&controls_panel, "Pomodoro");
 
-    let timer_row = gtk4::Box::new(gtk4::Orientation::Vertical, 6);
-    timer_row.add_css_class("pomodoro-timer-dial");
-    timer_row.set_halign(gtk4::Align::Center);
-    timer_row.set_valign(gtk4::Align::Center);
+    let timer_row = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
+    timer_row.add_css_class("pomodoro-timer-strip");
+    timer_row.set_halign(gtk4::Align::Fill);
+    timer_row.set_hexpand(true);
 
     let timer_label = gtk4::Label::new(Some("00:00"));
     timer_label.add_css_class("pomodoro-time");
-    timer_label.set_xalign(0.5);
+    timer_label.set_xalign(0.0);
+    timer_label.set_hexpand(true);
     timer_row.append(&timer_label);
 
     let pause_button = gtk4::Button::with_label("▶");
@@ -346,9 +346,9 @@ fn append_pomodoro_section(root: &gtk4::Box, show_sound_test_button: bool) {
     reset_button.set_tooltip_text(Some("Resetar timer"));
     reset_button.set_sensitive(false);
 
-    let timer_actions = gtk4::Box::new(gtk4::Orientation::Horizontal, 6);
+    let timer_actions = gtk4::Box::new(gtk4::Orientation::Horizontal, 4);
     timer_actions.add_css_class("pomodoro-timer-actions");
-    timer_actions.set_halign(gtk4::Align::Center);
+    timer_actions.set_halign(gtk4::Align::End);
     timer_actions.append(&pause_button);
     timer_actions.append(&reset_button);
     timer_row.append(&timer_actions);
@@ -357,13 +357,20 @@ fn append_pomodoro_section(root: &gtk4::Box, show_sound_test_button: bool) {
     status_label.add_css_class("pomodoro-status");
     status_label.set_xalign(0.0);
     controls_panel.append(&status_label);
+    controls_panel.append(&timer_row);
 
-    let controls = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
+    let controls = gtk4::FlowBox::new();
     controls.add_css_class("pomodoro-controls");
+    controls.set_selection_mode(gtk4::SelectionMode::None);
+    controls.set_min_children_per_line(2);
+    controls.set_max_children_per_line(4);
+    controls.set_halign(gtk4::Align::Fill);
+    controls.set_hexpand(true);
 
     let remaining_seconds = Rc::new(Cell::new(0_u32));
     let current_mode = Rc::new(std::cell::RefCell::new(None));
     let source_id = Rc::new(std::cell::RefCell::new(None));
+    let mode_buttons = Rc::new(std::cell::RefCell::new(Vec::new()));
     let runtime = PomodoroRuntime {
         timer_label: timer_label.clone(),
         status_label: status_label.clone(),
@@ -372,6 +379,7 @@ fn append_pomodoro_section(root: &gtk4::Box, show_sound_test_button: bool) {
         remaining_seconds,
         current_mode,
         source_id,
+        mode_buttons: mode_buttons.clone(),
     };
 
     for mode in [
@@ -381,6 +389,9 @@ fn append_pomodoro_section(root: &gtk4::Box, show_sound_test_button: bool) {
     ] {
         let button = gtk4::Button::with_label(&format!("{} {}", mode.icon, mode.label));
         button.add_css_class("pomodoro-button");
+        mode_buttons
+            .borrow_mut()
+            .push((mode.label.to_string(), button.clone()));
 
         let runtime = runtime.clone();
 
@@ -388,7 +399,7 @@ fn append_pomodoro_section(root: &gtk4::Box, show_sound_test_button: bool) {
             start_pomodoro_timer(mode, runtime.clone());
         });
 
-        controls.append(&button);
+        controls.insert(&button, -1);
     }
 
     if show_sound_test_button {
@@ -396,11 +407,10 @@ fn append_pomodoro_section(root: &gtk4::Box, show_sound_test_button: bool) {
         sound_test_button.add_css_class("pomodoro-button");
         sound_test_button.set_tooltip_text(Some("Testar aviso sonoro"));
         sound_test_button.connect_clicked(|_| play_timer_sound());
-        controls.append(&sound_test_button);
+        controls.insert(&sound_test_button, -1);
     }
 
     controls_panel.append(&controls);
-    root.append(&timer_row);
     root.append(&controls_panel);
 
     let runtime_for_pause = runtime.clone();
@@ -432,6 +442,7 @@ fn start_pomodoro_timer(mode: TimerMode, runtime: PomodoroRuntime) {
     runtime.pause_button.set_label("⏸");
     runtime.pause_button.set_sensitive(true);
     runtime.reset_button.set_sensitive(true);
+    update_mode_button_state(&runtime, Some(mode.label));
 
     schedule_pomodoro_tick(mode, runtime);
 }
@@ -507,6 +518,19 @@ fn reset_pomodoro_timer(runtime: PomodoroRuntime) {
     runtime.pause_button.set_label("▶");
     runtime.pause_button.set_sensitive(false);
     runtime.reset_button.set_sensitive(false);
+    update_mode_button_state(&runtime, None);
+}
+
+#[cfg(feature = "gtk-ui")]
+fn update_mode_button_state(runtime: &PomodoroRuntime, active_label: Option<&'static str>) {
+    for (label, button) in runtime.mode_buttons.borrow().iter() {
+        let is_active = active_label.is_some_and(|active| active == label);
+        if is_active {
+            button.add_css_class("pomodoro-button-active");
+        } else {
+            button.remove_css_class("pomodoro-button-active");
+        }
+    }
 }
 
 #[cfg(feature = "gtk-ui")]
@@ -533,6 +557,7 @@ struct PomodoroRuntime {
     remaining_seconds: Rc<Cell<u32>>,
     current_mode: Rc<std::cell::RefCell<Option<TimerMode>>>,
     source_id: Rc<std::cell::RefCell<Option<glib::SourceId>>>,
+    mode_buttons: Rc<std::cell::RefCell<Vec<(String, gtk4::Button)>>>,
 }
 
 #[cfg(feature = "gtk-ui")]
@@ -552,31 +577,71 @@ fn shortcut_icon(_label: &str) -> &'static str {
 }
 
 #[cfg(feature = "gtk-ui")]
-fn spawn_command(command: &str) -> std::io::Result<std::process::Child> {
+fn spawn_shortcut_command(label: &str, command: &str) -> std::io::Result<std::process::Child> {
+    let resolved = resolve_shortcut_command(label, command);
     std::process::Command::new("sh")
-        .args(["-lc", command])
+        .args(["-lc", &resolved])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
 }
+
+#[cfg(feature = "gtk-ui")]
+fn resolve_shortcut_command(label: &str, command: &str) -> String {
+    if label.eq_ignore_ascii_case("intellij") && command.trim() == "idea" {
+        return "$HOME/.local/share/JetBrains/Toolbox/scripts/idea || idea || intellij-idea-ultimate || intellij-idea-community || flatpak run com.jetbrains.IntelliJ-IDEA-Ultimate || flatpak run com.jetbrains.IntelliJ-IDEA-Community".to_string();
+    }
+
+    if label.eq_ignore_ascii_case("podman") {
+        return "podman-desktop || flatpak run io.podman_desktop.PodmanDesktop".to_string();
+    }
+
+    command.to_string()
+}
+
+#[cfg(feature = "gtk-ui")]
+fn reload_cockpit_process() -> std::io::Result<std::process::Child> {
+    let executable = std::env::current_exe()?;
+    let args: Vec<_> = std::env::args_os().skip(1).collect();
+
+    std::process::Command::new(executable)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+}
+
+#[cfg(feature = "gtk-ui")]
+fn effective_window_width(root: &gtk4::Box, config_width: u32) -> i32 {
+    let (_, natural, _, _) = root.measure(gtk4::Orientation::Horizontal, -1);
+    let fallback = (config_width as i32).max(1);
+    let preferred = if natural > 0 { natural } else { fallback };
+    preferred.min(900)
+}
+
 
 #[cfg(feature = "gtk-ui")]
 #[derive(Debug, Clone)]
 struct ContainerInfo {
     name: String,
-    image: String,
     engine: &'static str,
 }
 
 #[cfg(feature = "gtk-ui")]
 fn running_containers() -> Vec<ContainerInfo> {
-    let mut containers = containers_from_engine("podman");
-    containers.extend(containers_from_engine("docker"));
+    let mut containers = containers_from_engine("docker");
+    containers.extend(containers_from_engine("podman"));
+    containers.sort_by(|a, b| a.engine.cmp(b.engine).then_with(|| a.name.cmp(&b.name)));
+    containers.dedup_by(|a, b| a.engine == b.engine && a.name == b.name);
     containers
 }
 
 #[cfg(feature = "gtk-ui")]
 fn containers_from_engine(engine: &'static str) -> Vec<ContainerInfo> {
     let output = std::process::Command::new(engine)
-        .args(["ps", "--format", "{{.Names}}|{{.Image}}"])
+        .args(["ps", "--format", "{{.Names}}"])
         .output();
 
     let Ok(output) = output else {
@@ -589,10 +654,13 @@ fn containers_from_engine(engine: &'static str) -> Vec<ContainerInfo> {
     String::from_utf8_lossy(&output.stdout)
         .lines()
         .filter_map(|line| {
-            let (name, image) = line.split_once('|')?;
+            let name = line.trim();
+            if name.is_empty() {
+                return None;
+            }
+
             Some(ContainerInfo {
                 name: name.to_ascii_lowercase(),
-                image: image.to_ascii_lowercase(),
                 engine,
             })
         })
@@ -600,51 +668,24 @@ fn containers_from_engine(engine: &'static str) -> Vec<ContainerInfo> {
 }
 
 #[cfg(feature = "gtk-ui")]
-fn environment_statuses(containers: &[ContainerInfo]) -> Vec<(&'static str, &'static str, String)> {
-    let podman_count = containers
-        .iter()
-        .filter(|container| container.engine == "podman")
-        .count();
-    let docker_count = containers
-        .iter()
-        .filter(|container| container.engine == "docker")
-        .count();
+fn running_containers_json_like(containers: &[ContainerInfo]) -> String {
+    let mut lines = Vec::with_capacity(containers.len() + 2);
+    lines.push("{".to_string());
 
-    vec![
-        ("◇", "POSTGRES", service_status(containers, "postgres")),
-        ("◇", "KAFKA", service_status(containers, "kafka")),
-        ("◇", "REDIS", service_status(containers, "redis")),
-        (
-            "◇",
-            "DOCKER",
-            if docker_count > 0 {
-                format!("{docker_count} UP")
-            } else {
-                "OFFLINE".to_string()
-            },
-        ),
-        (
-            "◇",
-            "PODMAN",
-            if podman_count > 0 {
-                format!("{podman_count} UP")
-            } else {
-                "OFFLINE".to_string()
-            },
-        ),
-    ]
-}
-
-#[cfg(feature = "gtk-ui")]
-fn service_status(containers: &[ContainerInfo], needle: &str) -> String {
-    if containers
-        .iter()
-        .any(|container| container.name.contains(needle) || container.image.contains(needle))
-    {
-        "UP".to_string()
-    } else {
-        "DOWN".to_string()
+    for (index, container) in containers.iter().enumerate() {
+        let comma = if index + 1 == containers.len() {
+            ""
+        } else {
+            ","
+        };
+        lines.push(format!(
+            "  \"{}@{}\": \"UP\"{comma}",
+            container.name, container.engine
+        ));
     }
+
+    lines.push("}".to_string());
+    lines.join("\n")
 }
 
 #[cfg(feature = "gtk-ui")]

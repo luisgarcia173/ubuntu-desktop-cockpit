@@ -15,3 +15,5 @@
 # JetBrains IDEA files
 .idea/
 *.iml
+
+*/credentials.json
